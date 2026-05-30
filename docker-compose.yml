@@ -1,8 +1,34 @@
+
+version: "3.8"
+
 services:
   line-bot:
     build: .
+    container_name: line-bot
+
     ports:
       - "3000:3000"
     env_file:
       - .env
+
+    depends_on:
+      - mysql
     restart: unless-stopped
+    volumes:
+      - .:/app
+    command: node src/index.js
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "3307:3306" # Map port 3307 on the host to port 3306 in the container
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

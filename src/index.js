@@ -1,5 +1,6 @@
 // index.js — Line Bot with Express + MySQL + Google Sheets
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
+//require('../.env').config();
 
 const express = require('express');
 const crypto = require('crypto');
@@ -172,22 +173,33 @@ async function handleEvent(ev, conn) {
   const replyToken = ev.replyToken;
   const userId = ev.source.userId;
 
-  // 🧩 Follow event — เพิ่มเพื่อน
+  // step1 Follow event — add frind + show consent
   if (ev.type === 'follow') {
-    await conn.execute(
-      'INSERT IGNORE INTO users (user_id, step) VALUES (?, ?)',
-      [userId, -1]
-    );
-    await replyMessage(replyToken, [consentFlex()]);
-    return;
-  }
+  await conn.execute(
+  `INSERT INTO users (user_id, step)
+   VALUES (?, -1)
+   ON DUPLICATE KEY UPDATE user_id=user_id`,
+  [userId]
+  );
 
-  // ดึงข้อมูลผู้ใช้จาก MySQL
-  const [userRows] = await conn.execute(
+  await replyMessage(replyToken, [consentFlex()]);
+  return;
+}
+
+// step2 Text message — update step + show next question
+const [userRows] = await conn.execute(
     'SELECT * FROM users WHERE user_id=?',
     [userId]
   );
+
   const user = userRows[0];
+
+  
+    if (!user) {
+    console.log('❌ user not found');
+    return;
+  }
+
 
   // 🗣 Text message
   if (ev.type === 'message' && ev.message.type === 'text') {
@@ -210,11 +222,15 @@ async function handleEvent(ev, conn) {
     }
 
     if (text === 'ยินยอม') {
+      console.log('User consented');
       await conn.execute(
         'UPDATE users SET consent=?, step=? WHERE user_id=?',
         ['ยินยอม', 1, userId]
       );
+      console.log('Update step to 1');
+      
       await replyMessage(replyToken, [locationFlex()]);
+      return;
 
     } else if (text === 'ไม่ยินยอม') {
       await conn.execute(
@@ -224,18 +240,29 @@ async function handleEvent(ev, conn) {
       await replyMessage(replyToken, [
         { type: 'text', text: 'ขอบคุณค่ะ ข้อมูลของคุณจะไม่ถูกบันทึก 🙏' },
       ]);
-
-    } else if (
+    
+    } 
+    if (
       user?.step === 1 &&
       ['บ้าน', 'ตลาด', 'มหาวิทยาลัย', 'ใกล้สนามบิน'].includes(text)
     ) {
+     console.log('User selected place:', text);
+    {
       await conn.execute(
         'UPDATE users SET place=?, step=? WHERE user_id=?',
         [text, 2, userId]
       );
-      await replyMessage(replyToken, [noiseLevelFlex()]);
 
-    } else if (
+      console.log('Update step to 2');
+      console.log('step=', user?.step);
+      console.log('type=', typeof user?.step);
+      await replyMessage(replyToken, [noiseLevelFlex()]);
+      return;
+    }
+
+    } 
+    
+    if (
       user?.step === 2 &&
       ['ไม่รบกวนเลย', 'รบกวนเล็กน้อย', 'รบกวนมาก'].includes(text)
     ) {
@@ -249,7 +276,7 @@ async function handleEvent(ev, conn) {
     }
   }
 
-  // 📍 Location message (step 3) — บันทึก MySQL แล้ว sync ไป Google Sheets
+  // Location message (step 3) — บันทึก MySQL แล้ว sync ไป Google Sheets
   if (ev.type === 'message' && ev.message.type === 'location') {
     const { latitude, longitude, address } = ev.message;
 
@@ -293,7 +320,6 @@ app.post('/webhook', async (req, res) => {
     return res.status(401).send('Invalid signature');
   }
 
-  // log payload
   console.log(JSON.stringify(req.body, null, 2));
 
   const events = req.body.events || [];
@@ -305,8 +331,25 @@ app.post('/webhook', async (req, res) => {
   let conn;
 
   try {
+    // เชื่อม MySQL
     conn = await mysql.createConnection(DB_CONFIG);
 
+    // สร้างตารางถ้ายังไม่มี
+    await conn.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(255) UNIQUE,
+        consent VARCHAR(50),
+        place VARCHAR(255),
+        noise_level VARCHAR(255),
+        latitude DOUBLE,
+        longitude DOUBLE,
+        address TEXT,
+        step INT DEFAULT -1
+      )
+    `);
+
+    // ประมวลผล event
     await Promise.all(
       events.map((ev) => handleEvent(ev, conn))
     );
@@ -318,7 +361,9 @@ app.post('/webhook', async (req, res) => {
     return res.status(500).send('Server Error');
 
   } finally {
-    if (conn) await conn.end();
+    if (conn) {
+      await conn.end();
+    }
   }
 });
 
