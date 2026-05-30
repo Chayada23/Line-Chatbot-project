@@ -1,0 +1,27 @@
+{
+  "name": "line-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.16.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "googleapis": "^140.0.0",
+    "mysql2": "^3.6.0"
+  },
+  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chayada23/Line-Chatbot-project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Chayada23/Line-Chatbot-project/issues"
+  },
+  "homepage": "https://github.com/Chayada23/Line-Chatbot-project#readme"
+}
