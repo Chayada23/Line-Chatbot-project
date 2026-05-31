@@ -6,6 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+
     "axios": "^1.16.1",
     "dotenv": "^16.6.1",
     "express": "^4.22.2",
@@ -25,3 +26,4 @@
   },
   "homepage": "https://github.com/Chayada23/Line-Chatbot-project#readme"
 }
+

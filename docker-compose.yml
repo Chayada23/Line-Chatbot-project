@@ -4,10 +4,12 @@ services:
   line-bot:
     build: .
     container_name: line-bot
+
     ports:
       - "3000:3000"
     env_file:
       - .env
+
     depends_on:
       - mysql
     restart: unless-stopped
@@ -28,4 +30,5 @@ services:
       - mysql_data:/var/lib/mysql
 
 volumes:
+
   mysql_data:
